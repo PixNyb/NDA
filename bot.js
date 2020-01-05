@@ -21,13 +21,11 @@ client.on('message', msg => {
         var args = msg.content.split(' ');
         var command = args.shift().substr(1);
         switch(command.toLowerCase()){
-            case 'help':
-                msg.channel.send(messages.gethelp(msg.author));
-                break;
             case 'kick':
-                if (!msg.member.hasPermission('KICK_MEMBERS')) return msg.channel.send(messages.missingpermissions("1 - Missing permissions."));
+                if (!msg.member.hasPermission('KICK_MEMBERS')) return msg.channel.send(messages.missingpermissions.setFooter('1 - Can\'t use this command.'));
+                if (!args[0]) return msg.channel.send(messages.syntaxerror.setFooter('Member was not defined.'));
                 var member = msg.mentions.members.first() ? msg.mentions.members.first() : msg.guild.members.find("username", args[0]);
-                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions("2 - Can't alter member."));
+                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions.setFooter('2 - Can\'t alter this member.'));
                 var reason = args[1];
                 msg.channel.send(
                     new Discord.RichEmbed()
@@ -37,9 +35,10 @@ client.on('message', msg => {
                 utils.log(`User kicked.`, `${msg.author} has kicked ${user}.\n${reason}`);
                 break;
             case 'ban':
-                if (!msg.member.hasPermission('BAN_MEMBERS')) return msg.channel.send(messages.missingpermissions("1 - Missing permissions."));
+                if (!msg.member.hasPermission('BAN_MEMBERS')) return msg.channel.send(messages.missingpermissions.setFooter('1 - Can\'t use this command.'));
+                if (!args[0]) return msg.channel.send(messages.syntaxerror.setFooter('Member was not defined.'));
                 var member = msg.mentions.members.first() ? msg.mentions.members.first() : msg.guild.members.find("username", args[0]);
-                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions("2 - Can't alter member."));
+                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions.setFooter('2 - Can\'t alter this member.'));
                 var reason = args[1];
                 msg.channel.send(
                     new Discord.RichEmbed()
@@ -48,7 +47,29 @@ client.on('message', msg => {
                 member.ban(reason);
                 utils.log(`User banned.`, `${msg.author} has banned ${user}.\n${reason}`);
                 break;
+            case 'clean':
+                if (isNaN(args[0])) return msg.channel.send(messages.syntaxerror.setFooter('Amount was not defined or not numeric.'));
+                break;
+            default:
+            case 'help':
+                msg.channel.send(messages.help);
+                break;
         }
     }
+})
+
+client.on("guildCreate", guild => {
+    var channelID;
+    var channels = guild.channels;
+    channelLoop:
+    for (let c of channels) {
+        var channelType = c[1].type;
+        if (channelType === "text") {
+            channelID = c[0];
+            break channelLoop;
+        }
+    }
+    var channel = bot.channels.get(guild.systemChannelID || channelID);
+    channel.send(messages.welcome);
 })
 client.login(config.private.token);
