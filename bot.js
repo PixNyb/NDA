@@ -4,6 +4,7 @@ const utils = require('./bot_modules/utils.js');
 const messages = require('./bot_modules/messages.js');
 const admincommands = require('./bot_modules/admincommands.js');
 const config = require('./config.json');
+let servers = utils.updateFile('./servers.json');
 
 // Bot Version
 const version = 1.1;
@@ -13,6 +14,12 @@ client.on('ready', () => {
     console.log(`Running v${version}.`);
     if (parseFloat(config.version) < version) console.log(`Config outdated! (Config version ${config.version}).`);
     client.user.setPresence({ game: { name: `with ${client.users.size} people across ${client.guilds.size} guilds.` }, status: 'online' })
+    client.guilds.forEach((guild) => {
+        if (!servers.hasOwnProperty(guild.id)) {
+            servers[guild.id] = config.defaultServer;
+        }
+    });
+    servers = utils.updateFile('./servers.json', servers);
 });
 
 client.on('message', msg => {
@@ -49,6 +56,12 @@ client.on('message', msg => {
                 break;
             case 'clean':
                 if (isNaN(args[0])) return msg.channel.send(messages.syntaxerror.setFooter('Amount was not defined or not numeric.'));
+                break;
+            case 'logformedaddy':
+                console.log(`Servers:`);
+                console.log(servers);
+                console.log(`Config:`);
+                console.log(config);
                 break;
             default:
             case 'help':

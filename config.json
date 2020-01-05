@@ -1,4 +1,7 @@
 {
+    "defaultServer": {
+        "test": "Testing"
+    },
     "private": {
         "token": ""
     },
