@@ -1,4 +1,5 @@
 const fs = require('fs');
+const messages = require('../bot_modules/messages.js');
 const Discord = require('discord.js');
 
 module.exports = {
@@ -6,8 +7,6 @@ module.exports = {
         var rankToBeCompared = toBeCompared.highestRole.calculatedPosition;
         var rankStandard = standard.highestRole.calculatedPosition;
         return rankToBeCompared > rankStandard ? true : false;
-    },
-    log: function(server, title, description) {
     },
     updateFile: function(location, data) {
         if (data) {
