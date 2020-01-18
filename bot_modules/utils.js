@@ -10,7 +10,6 @@ module.exports = {
     log: function(server, title, description) {
     },
     updateFile: function(location, data) {
-        let result = {};
         if (data) {
             fs.writeFile(location, JSON.stringify(data, null, 4), (err) => {
                 if (err) throw err;
@@ -22,6 +21,5 @@ module.exports = {
                 result = JSON.parse(newData);
             });
         }
-        return result;
     }
 }
