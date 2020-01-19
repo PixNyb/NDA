@@ -15,10 +15,10 @@ client.on('ready', () => {
     client.user.setPresence({ game: { name: `with ${client.users.size} people across ${client.guilds.size} guilds.` }, status: 'online' })
     client.guilds.forEach((guild) => {
         if (!servers[guild.id]) {
-            servers[guild.id] = config.defaultServer;
+            servers[guild.id] = {};
         }
-        if (!servers[guild.id].logId) {
-            servers[guild.id].logId = guild.channels.find('name', 'nda-logs').id;
+        if (!servers[guild.id].logId || !guild.channels.get(servers[guild.id].logId)) {
+            servers[guild.id].logId = guild.channels.find("name", 'nda-logs').id;
         }
     });
     utils.updateFile('./servers.json', servers);
@@ -34,32 +34,54 @@ client.on('message', msg => {
                 if (!msg.member.hasPermission('KICK_MEMBERS')) return msg.channel.send(messages.missingpermissions().setFooter('1 - Can\'t use this command.'));
                 if (!args[0]) return msg.channel.send(messages.syntaxerror().setFooter('Member was not defined.'));
                 var member = msg.mentions.members.first() ? msg.mentions.members.first() : msg.guild.members.find("username", args[0]);
-                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions().setFooter('2 - Can\'t alter this member.'));
+                if (!utils.compareRank(msg.member, member)) return msg.channel.send(messages.missingpermissions().setFooter('2 - Can\'t alter this member.'));
                 var reason = args[1];
                 member.kick(reason);
-                msg.channel.send(messages.success().addField(`Kicked user ${user}.`, `${reason ? reason : `No reason specified.`}`));
-                log(msg.guild, `User kicked.`, `${msg.author} has kicked ${user}.\n${reason}`);
+                msg.channel.send(messages.success().addField(`Kicked user ${member.user.tag}.`, `${reason ? reason : `No reason specified.`}`));
                 break;
             case 'ban':
                 if (!msg.member.hasPermission('BAN_MEMBERS')) return msg.channel.send(messages.missingpermissions().setFooter('1 - Can\'t use this command.'));
                 if (!args[0]) return msg.channel.send(messages.syntaxerror().setFooter('Member was not defined.'));
                 var member = msg.mentions.members.first() ? msg.mentions.members.first() : msg.guild.members.find("username", args[0]);
-                if (!utils.comparerank(msg.member, member)) return msg.channel.send(messages.missingpermissions().setFooter('2 - Can\'t alter this member.'));
+                if (!utils.compareRank(msg.member, member)) return msg.channel.send(messages.missingpermissions().setFooter('2 - Can\'t alter this member.'));
                 var reason = args[1];
                 member.ban(reason);
-                msg.channel.send(messages.success().addField(`Banned user ${user}.`, `${reason ? reason : `No reason specified.`}`));
-                log(msg.guild, `User banned.`, `${msg.author} has banned ${user}.\n${reason}`);
+                msg.channel.send(messages.success().addField(`Banned user ${member.user.tag}.`, `${reason ? reason : `No reason specified.`}`));
                 break;
             case 'clear':
                 if (isNaN(args[0])) return msg.channel.send(messages.syntaxerror().setFooter('Amount was not defined or not numeric.'));
-                if (args[0] > 100) args[0] = 100
-                let count = parseInt(args[0]) + 1;
+                let count = args[0] <= 99 ? parseInt(args[0]) + 1 : 100;
                 let channel = msg.channel;
                 channel.fetchMessages({limit: count})
-                    .then(messages => channel.bulkDelete(messages));
-                var link = "Sorry! This functionality hasn't been added yet.";
-                msg.channel.send(messages.success().addField(`Cleared ${args[0]} messages.`, `See what's been deleted: ${link}`));
-                log(msg.guild, `Messages cleared.`, `${msg.author} has cleared ${args[0]} messages in ${channel}.`);
+                    .then(msgs => {
+                        channel.bulkDelete(msgs);
+                        var link = "Sorry! This functionality hasn't been added yet.";
+                        msg.channel.send(messages.success().addField(`Cleared ${msgs.size - 1} message(s).`, `See what's been deleted: ${link}`));
+                        log(msg.guild, `Message(s) cleared.`, `${msg.author} has cleared ${msgs.size - 1} message(s) in ${channel}.`);
+                    });
+                break;
+            case 'settings':
+                if (!msg.member.hasPermission('BAN_MEMBERS')) return msg.channel.send(messages.missingpermissions().setFooter('1 - Can\'t use this command.'));
+                switch (args[0] ? args[0].toLowerCase() : args[0]) {
+                    case 'autorole':
+                        if (args[1].toLowerCase() === "none") {
+                            delete servers[msg.guild.id].autorole;
+                            msg.channel.send(messages.success().addField(`Autorole has been unset!`, `New users will no longer be assigned a role.`));
+                        } else {
+                            if (!msg.mentions.roles.first()) return msg.channel.send(messages.syntaxerror().setFooter('Role was not mentioned or defined.'));
+                            servers[msg.guild.id].autorole = msg.mentions.roles.first().id;
+                            msg.channel.send(messages.success().addField(`Autorole has been set!`, `New users will now be assigned the ${msg.mentions.roles.first()} role.`));
+                        }
+                        utils.updateFile('./servers.json', servers);
+                        break;
+                    default:
+                        msg.channel.send(
+                            messages.settings()
+                                .addField(`Logging channel.`, `${servers[msg.guild.id].logId ? msg.guild.channels.get(servers[msg.guild.id].logId) : 'None'}`, true)
+                                .addField(`*Autorole.`, `${servers[msg.guild.id].autorole ? msg.guild.roles.get(servers[msg.guild.id].autorole) : 'None'}`, true)
+                        );
+                        break;
+                }
                 break;
             case 'help':
                 msg.channel.send(messages.help());
@@ -69,6 +91,35 @@ client.on('message', msg => {
                 break;
         }
     }
+})
+
+client.on("guildMemberAdd", async member => {
+    log(member.guild, `User joined.`, `${member} has joined our server!\nThere are now a total of ${member.guild.members.size} members in this server.`, member.user.avatarURL);
+    if (!servers[member.guild.id].autorole) return;
+    member.addRole(servers[member.guild.id].autorole);
+});
+
+client.on("guildMemberRemove", async member => {
+    const fetchedKickLogs = await member.guild.fetchAuditLogs({
+		limit: 1,
+		type: 'MEMBER_KICK',
+    });
+    const relLog = fetchedKickLogs.entries.first();
+    const {admin, target} = relLog;
+    if (member.id === target.id) {
+        log(member.guild, `User kicked.`, `${member} has been kicked.`);
+    } else {
+        log(member.guild, `User left.`, `${member} has left our server.\nThere are now a total of ${member.guild.members.size} members in this server.`, member.user.avatarURL);
+    }
+});
+
+client.on("messageDelete", msg => {
+    log(msg.guild, `Message deleted.`, `A message by ${msg.member} has been deleted in ${msg.channel}.`);
+});
+
+client.on("messageUpdate", (oldMsg, newMsg) => {
+    if (oldMsg.author.id === client.user.id) return;
+    log(oldMsg.guild, `Message updated.`, `A message by ${oldMsg.member} has been edited in ${oldMsg.channel}.\nO: \`${oldMsg.content.trim()}\`\nN: \`${newMsg.content.trim()}\``);
 })
 
 client.on("guildCreate", guild => {
@@ -82,14 +133,23 @@ client.on("guildCreate", guild => {
             break channelLoop;
         }
     }
-    var channel = bot.channels.get(guild.systemChannelID || channelID);
-    channel.send(messages.welcome());
-})
+    var channel = client.channels.get(guild.systemChannelID || channelID);
+    channel.send(messages.welcome().setThumbnail(client.user.avatarURL));
+    servers[guild.id] = {};
+    utils.updateFile('./servers.json', servers);
+});
 
-function log(server, title, description) {
-    var logchannel = server.channels.get(servers[server.id].logId) ? server.channels.get(servers[server.id].logId) : server.channels.find("name", 'nda-logs');
+client.on("guildDelete", guild => {
+    delete servers[guild.id];
+    utils.updateFile('./servers.json', servers);
+});
+
+function log(server, title = '', description = '', thumbnail = '') {
+    if (!servers[server.id].logId || !server.channels.get(servers[server.id].logId)) servers[server.id].logId = server.channels.find("name", 'nda-logs').id;
+    var logchannel = server.channels.get(servers[server.id].logId);
     if (!logchannel) return;
-    logchannel.send(messages.log().addField(title,description));
+    logchannel.send(messages.log().addField(title,description).setThumbnail(thumbnail).setTimestamp(new Date));
+    utils.updateFile('./servers.json', servers);
 }
 
 client.login(config.private.token);
