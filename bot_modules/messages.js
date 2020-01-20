@@ -48,7 +48,9 @@ module.exports = {
         .addField(`${config.prefix}help`, `Display this list.`)
         .addField(`${config.prefix}kick {@member} (reason)`, `Kick a member.`)
         .addField(`${config.prefix}ban {@member} (reason)`, `Ban a member.`)
-        .addField(`${config.prefix}clear {amount}`, `Clear the specified number of messages.`);
+        .addField(`${config.prefix}clear {amount}`, `Clear the specified number of messages.`)
+        .addField(`${config.prefix}user {@member}`, `List all information for the specified member.`)
+        .addField(`${config.prefix}settings (setting) (value)`, `List and change settings.`)
         return msg;
     },
     missingpermissions: function() {

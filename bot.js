@@ -60,6 +60,30 @@ client.on('message', msg => {
                         log(msg.guild, `Message(s) cleared.`, `${msg.author} has cleared ${msgs.size - 1} message(s) in ${channel}.`);
                     });
                 break;
+            case 'user':
+                if (!msg.member.hasPermission('KICK_MEMBERS')) return msg.channel.send(messages.missingpermissions().setFooter('1 - Can\'t use this command.'));
+                if (!args[0]) return msg.channel.send(messages.syntaxerror().setFooter('Member was not defined.'));
+                var member = msg.mentions.members.first() ? msg.mentions.members.first() : msg.guild.members.find("username", args[0]);
+                msg.channel.send(
+                    new Discord.RichEmbed()
+                    .setTitle(`${member.user.tag}'s information.`)
+                    .setDescription(`A list of all information for this user.`)
+                    .setThumbnail(member.user.avatarURL)
+                    .addField(`Discord user information.` , `Information gathered from discord.`)
+                    .addField(`Username.`, `${member.user.username}`, true)
+                    .addField(`Discriminator`, `${member.user.discriminator}`, true)
+                    .addField(`ID.`, `${member.user.id}`, true)
+                    .addField(`User presence.`, `${member.user.presence.status}`, true)
+                    .addField(`Discord member since.`, `${member.user.createdAt}`, true)
+                    .addField(`Is this member a bot?`, `${member.user.bot ? `Yes` : `No`}`, true)
+                    .addBlankField()
+                    .addField(`Server member information.`, `Information gathered from this server.`)
+                    .addField(`Nickname.`, `${member.nickname ? member.nickname : `None`}`, true)
+                    .addField(`Primary role.`, `${member.hoistRole}`, true)
+                    .addField(`Highest role.`, `${member.highestRole}`, true)
+                    .addField(`Server member since.`, `${member.joinedAt}`, true)
+                );
+                break;
             case 'settings':
                 if (!msg.member.hasPermission('BAN_MEMBERS')) return msg.channel.send(messages.missingpermissions().setFooter('1 - Can\'t use this command.'));
                 switch (args[0] ? args[0].toLowerCase() : args[0]) {
@@ -120,6 +144,13 @@ client.on("messageDelete", msg => {
 client.on("messageUpdate", (oldMsg, newMsg) => {
     if (oldMsg.author.id === client.user.id) return;
     log(oldMsg.guild, `Message updated.`, `A message by ${oldMsg.member} has been edited in ${oldMsg.channel}.\nO: \`${oldMsg.content.trim()}\`\nN: \`${newMsg.content.trim()}\``);
+})
+
+client.on("guildMemberUpdate", (oldMember, newMember) => {
+    if (oldMember.nickname != newMember.nickname) return log(oldMember.guild, `Username updated.`, `${newMember}'s username has been updated.\nO: \`${oldMember.nickname ? oldMember.nickname : oldMember.user.username}\`\nN: \`${newMember.nickname ? newMember.nickname : newMember.user.username}\``);
+    if (oldMember.roles != newMember.roles) {
+        //To be added
+    }
 })
 
 client.on("guildCreate", guild => {
