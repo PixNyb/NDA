@@ -18,7 +18,8 @@ client.on('ready', () => {
             servers[guild.id] = {};
         }
         if (!servers[guild.id].logId || !guild.channels.get(servers[guild.id].logId)) {
-            servers[guild.id].logId = guild.channels.find("name", 'nda-logs').id;
+            var channel = guild.channels.find("name", 'nda-logs')
+            if (channel) servers[guild.id].logId = channel.id;
         }
     });
     utils.updateFile('./servers.json', servers);
@@ -142,7 +143,7 @@ client.on("messageDelete", msg => {
 });
 
 client.on("messageUpdate", (oldMsg, newMsg) => {
-    if (oldMsg.author.id === client.user.id) return;
+    if (oldMsg.author.bot) return;
     log(oldMsg.guild, `Message updated.`, `A message by ${oldMsg.member} has been edited in ${oldMsg.channel}.\nO: \`${oldMsg.content.trim()}\`\nN: \`${newMsg.content.trim()}\``);
 })
 
@@ -176,7 +177,10 @@ client.on("guildDelete", guild => {
 });
 
 function log(server, title = '', description = '', thumbnail = '') {
-    if (!servers[server.id].logId || !server.channels.get(servers[server.id].logId)) servers[server.id].logId = server.channels.find("name", 'nda-logs').id;
+    if (!servers[server.id].logId || !server.channels.get(servers[server.id].logId)) {
+        var channel = server.channels.find("name", 'nda-logs');
+        if (channel) servers[server.id].logId = channel.id;
+    }
     var logchannel = server.channels.get(servers[server.id].logId);
     if (!logchannel) return;
     logchannel.send(messages.log().addField(title,description).setThumbnail(thumbnail).setTimestamp(new Date));
